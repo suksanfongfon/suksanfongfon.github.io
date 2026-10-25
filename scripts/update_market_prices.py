@@ -25,7 +25,7 @@ def parse_report(raw):
     if len(items) < 10:
         raise ValueError('Too few valid prices; retaining previous data')
     items.sort(key=lambda a: (-a['high'], a['name']))
-    return dict(source=SOURCE, date=date[1], category='อาคารผัก', total=len(items), items=items[:10])
+    return dict(source=SOURCE, date=date[1], category='อาคารผัก', total=len(items), items=items)
 if __name__ == '__main__':
     # Complete the server's missing intermediate chain while retaining system roots,
     # hostname verification, expiry checks and certificate signature validation.
