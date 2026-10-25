@@ -1,5 +1,5 @@
 """Read the public vegetable wholesale report; keep the previous data on failure."""
-import datetime, html, json, re, subprocess
+import datetime, html, json, re, subprocess, ssl, tempfile
 from pathlib import Path
 SOURCE = 'https://www.taladsrimuang.com/site/product/report_all.php?id=1'
 def parse_report(raw):
@@ -27,7 +27,19 @@ def parse_report(raw):
     items.sort(key=lambda a: (-a['high'], a['name']))
     return dict(source=SOURCE, date=date[1], category='อาคารผัก', total=len(items), items=items[:10])
 if __name__ == '__main__':
-    raw = subprocess.run(['curl','--fail','--location','--silent','--show-error','--max-time','30',SOURCE], check=True, capture_output=True).stdout.decode('utf-8')
+    # Complete the server's missing intermediate chain while retaining system roots,
+    # hostname verification, expiry checks and certificate signature validation.
+    intermediate = Path(__file__).resolve().parent / 'certs/rapidssl-tls-rsa-ca-g1.pem'
+    context = ssl.create_default_context()
+    roots = context.get_ca_certs(binary_form=True)
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.pem') as bundle:
+        for cert in roots:
+            bundle.write(ssl.DER_cert_to_PEM_cert(cert))
+        bundle.write(intermediate.read_text())
+        bundle.flush()
+        raw = subprocess.run(['curl','--fail','--location','--silent','--show-error',
+                              '--retry','2','--max-time','30','--cacert',bundle.name,SOURCE],
+                             check=True, capture_output=True).stdout.decode('utf-8')
     result = parse_report(raw)
     result['checked_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     target = Path(__file__).resolve().parents[1] / 'data/market-prices.json'
